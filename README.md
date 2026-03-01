@@ -3,7 +3,7 @@
 
 ![](./img/home_logo.png)
 
-## 支持 [IJKPlayer](https://github.com/Bilibili/ijkplayer)、 [Media3(EXOPlayer2)](https://github.com/androidx/media)、MediaPlayer、AliPlayer，实现了多功能的视频播放器。 (请仔细阅读下方各项说明，大多数问题可在下方找到解答)。
+## 支持 [IJKPlayer](https://github.com/CarGuo/ijkplayer)、 [Media3(EXOPlayer2)](https://github.com/androidx/media)、MediaPlayer、AliPlayer，实现了多功能的视频播放器。 (请仔细阅读下方各项说明，大多数问题可在下方找到解答)。
 
 ## * 鸿蒙版本[openharmony-tpc/GSYVideoPlayer](https://gitcode.com/openharmony-tpc/openharmony_tpc_samples/tree/master/GSYVideoPlayer)
 
@@ -28,9 +28,9 @@
  **dash**    | **media3(exo2) 模式支持dash**
  **stream**  | **支持元数据播放**
  **适配 16k**  | **ex_so 适配 16K Page Size**
- **openssl** | **目前 arm64 使用 openssl 1.1.1w**
- **FFmpeg**  | **目前 arm64 使用 FFmpeg 4.1.6**
- **FFmpeg**  | **目前 ex_so 的 arm64 支持 G711a(pcm_alaw)**
+ **openssl** | **目前  ex_so 的 arm64/x86_64 使用 openssl 1.1.1w**
+ **FFmpeg**  | **目前  ex_so 的 arm64/x86_64 使用 FFmpeg 4.3**
+ **FFmpeg**  | **目前  ex_so 的 arm64/x86_64 支持 G711a(pcm_alaw)**
  **更多**      | **暂停前后台切换不黑屏；调整不同清晰度的支持；无缝切换支持；锁定/解锁全屏点击功能；进度条小窗口预览（测试）。**
  **自定义**     | **可自定义渲染层、自定义管理层、自定义播放层（控制层）、自定义缓存层。**
 

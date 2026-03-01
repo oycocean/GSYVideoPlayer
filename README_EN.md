@@ -1,6 +1,6 @@
 ![](./img/home_logo.png)
 
-## Supports [IJKPlayer](https://github.com/Bilibili/ijkplayer), [Media3(EXOPlayer2)](https://github.com/androidx/media), MediaPlayer, AliPlayer, implementing a multi-functional video player. (Please read the following instructions carefully, most questions can be answered below).
+## Supports [IJKPlayer](https://github.com/CarGuo/ijkplayer), [Media3(EXOPlayer2)](https://github.com/androidx/media), MediaPlayer, AliPlayer, implementing a multi-functional video player. (Please read the following instructions carefully, most questions can be answered below).
 
 ## * HarmonyOS version [openharmony-tpc/GSYVideoPlayer](https://gitcode.com/openharmony-tpc/openharmony_tpc_samples/tree/master/GSYVideoPlayer)
 
@@ -25,9 +25,9 @@
  **Dash**    | **Media3(exo2) mode supports dash**
  **Stream**  | **Supports metadata playback**
  **Adapt 16k**  | **ex_so adapts to 16K Page Size**
- **openssl** | **Currently arm64 uses openssl 1.1.1w**
- **FFmpeg**  | **Currently arm64 uses FFmpeg 4.1.6**
- **FFmpeg**  | **Currently ex_so's arm64 supports G711a(pcm_alaw)**
+ **openssl** | **Currently ex_so's arm64/x86_64  uses openssl 1.1.1w**
+ **FFmpeg**  | **Currently ex_so's arm64/x86_64 uses FFmpeg 4.3**
+ **FFmpeg**  | **Currently ex_so's arm64/x86_64  supports G711a(pcm_alaw)**
  **More**      | **No black screen when pausing front and back switching; support for adjusting different definitions; seamless switching support; lock/unlock full screen click function; progress bar small window preview (test).**
  **Customization**     | **Customizable rendering layer, custom management layer, custom playback layer (control layer), custom cache layer.**
 
