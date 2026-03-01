@@ -6,7 +6,13 @@ android {
 }
 
 dependencies {
-    api viewDependencies.media
+    api(viewDependencies.media - ["androidx.media3:media3-datasource-rtmp:${mediaVersion}"])
+
+    api("androidx.media3:media3-datasource-rtmp:${mediaVersion}") {
+        exclude group: 'io.antmedia', module: 'rtmp-client'
+    }
+    api "com.github.mcxinyu:LibRtmp-Client-for-Android:v3.2.0.m2"
+
     api project(":gsyVideoPlayer-base")
 }
 
