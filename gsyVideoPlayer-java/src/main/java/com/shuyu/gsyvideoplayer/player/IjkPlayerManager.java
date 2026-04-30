@@ -97,6 +97,8 @@ public class IjkPlayerManager extends BasePlayerManager {
                             mediaPlayer.setDataSource(fileDescriptor);
                         } catch (Exception e) {
                             e.printStackTrace();
+                            release();
+                            return;
                         }
                     } else {
                         mediaPlayer.setDataSource(url, gsyModel.getMapHeadData());
@@ -116,6 +118,8 @@ public class IjkPlayerManager extends BasePlayerManager {
             initIJKOption(mediaPlayer, optionModelList);
         } catch (IOException e) {
             e.printStackTrace();
+            release();
+            return;
         }
 
         initSuccess(gsyModel);

@@ -621,6 +621,10 @@ public abstract class GSYVideoBaseManager implements IMediaPlayer.OnPreparedList
 
             setNeedMute(needMute);
             IMediaPlayer mediaPlayer = playerManager.getMediaPlayer();
+            if (mediaPlayer == null) {
+                notifyPrepareError();
+                return;
+            }
             mediaPlayer.setOnCompletionListener(this);
             mediaPlayer.setOnBufferingUpdateListener(this);
             mediaPlayer.setScreenOnWhilePlaying(true);
@@ -633,7 +637,35 @@ public abstract class GSYVideoBaseManager implements IMediaPlayer.OnPreparedList
 
         } catch (Exception e) {
             e.printStackTrace();
+            notifyPrepareError();
         }
+    }
+
+    private void notifyPrepareError() {
+        if (playerManager != null) {
+            try {
+                playerManager.release();
+            } catch (Exception releaseException) {
+                releaseException.printStackTrace();
+            }
+        }
+        if (cacheManager != null) {
+            try {
+                cacheManager.release();
+            } catch (Exception releaseException) {
+                releaseException.printStackTrace();
+            }
+        }
+        bufferPoint = 0;
+        cancelTimeOutBuffer();
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (listener() != null) {
+                    listener().onError(IMediaPlayer.MEDIA_ERROR_UNKNOWN, IMediaPlayer.MEDIA_ERROR_UNKNOWN);
+                }
+            }
+        });
     }
 
 

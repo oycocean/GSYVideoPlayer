@@ -67,11 +67,17 @@ public class Exo2PlayerManager extends BasePlayerManager {
                 mediaPlayer.setOverrideExtension(gsyModel.getOverrideExtension());
                 mediaPlayer.setDataSource(context, Uri.parse(gsyModel.getUrl()), gsyModel.getMapHeadData());
             }
+            if (mediaPlayer.getMediaSource() == null) {
+                release();
+                return;
+            }
             if (gsyModel.getSpeed() != 1 && gsyModel.getSpeed() > 0) {
                 mediaPlayer.setSpeed(gsyModel.getSpeed(), 1);
             }
         } catch (Exception e) {
             e.printStackTrace();
+            release();
+            return;
         }
         initSuccess(gsyModel);
     }

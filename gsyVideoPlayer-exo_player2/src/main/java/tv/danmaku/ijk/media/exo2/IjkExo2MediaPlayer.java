@@ -395,6 +395,8 @@ public class IjkExo2MediaPlayer extends AbstractMediaPlayer implements Player.Li
                 }
                 if (mSurface != null) mInternalPlayer.setVideoSurface(mSurface);
                 if (mMediaSource == null) {
+                    notifyOnError(IMediaPlayer.MEDIA_ERROR_UNKNOWN, IMediaPlayer.MEDIA_ERROR_UNKNOWN);
+                    release();
                     return;
                 }
                 mInternalPlayer.setMediaSource(mMediaSource);

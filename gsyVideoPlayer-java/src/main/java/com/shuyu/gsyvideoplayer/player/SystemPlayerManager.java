@@ -71,6 +71,8 @@ public class SystemPlayerManager extends BasePlayerManager {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            release();
+            return;
         }
         initSuccess(gsyModel);
     }
