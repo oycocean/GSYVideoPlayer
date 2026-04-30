@@ -66,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         binding.inputType.setOnClickListener(this);
         binding.openBtnEmpty.setOnClickListener(this);
         binding.openControl.setOnClickListener(this);
+        binding.keepLastFrameDemo.setOnClickListener(this);
         binding.openFilter.setOnClickListener(this);
         binding.openBtnPick.setOnClickListener(this);
         binding.openBtnAuto.setOnClickListener(this);
@@ -173,6 +174,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.open_control:
                 JumpUtils.gotoControl(this);
+                break;
+            case R.id.keep_last_frame_demo:
+                JumpUtils.gotoKeepLastFrameDemo(this);
                 break;
             case R.id.open_filter:
                 JumpUtils.gotoFilter(this);

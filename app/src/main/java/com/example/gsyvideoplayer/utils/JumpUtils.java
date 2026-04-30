@@ -25,6 +25,7 @@ import com.example.gsyvideoplayer.DetailPlayer;
 import com.example.gsyvideoplayer.DetailTransparentActivity;
 import com.example.gsyvideoplayer.FragmentVideoActivity;
 import com.example.gsyvideoplayer.InputUrlDetailActivity;
+import com.example.gsyvideoplayer.KeepLastFrameDemoActivity;
 import com.example.gsyvideoplayer.ListADVideoActivity2;
 import com.example.gsyvideoplayer.ListMultiVideoActivity;
 import com.example.gsyvideoplayer.ListVideo2Activity;
@@ -420,6 +421,11 @@ public class JumpUtils {
      */
     public static void gotoControl(Activity activity) {
         Intent intent = new Intent(activity, DetailControlActivity.class);
+        activity.startActivity(intent);
+    }
+
+    public static void gotoKeepLastFrameDemo(Activity activity) {
+        Intent intent = new Intent(activity, KeepLastFrameDemoActivity.class);
         activity.startActivity(intent);
     }
 

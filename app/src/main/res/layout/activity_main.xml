@@ -37,6 +37,13 @@
             android:text="带控制DEMO" />
 
         <Button
+            android:id="@+id/keep_last_frame_demo"
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="完成保留最后一帧" />
+
+        <Button
             android:id="@+id/transparent"
             android:layout_width="240dp"
             android:layout_height="wrap_content"
