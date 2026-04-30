@@ -62,6 +62,10 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
 
     private int mMode = MODE_LAYOUT_SIZE;
 
+    private boolean mRendererInitialized;
+
+    private Surface mCurrentSurface;
+
     public interface ShaderInterface {
         String getShader(GLSurfaceView mGlSurfaceView);
     }
@@ -90,6 +94,9 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
         if (mRenderer != null) {
             mRenderer.initRenderSize();
         }
+        if (mRendererInitialized) {
+            requestRender();
+        }
     }
 
     @Override
@@ -117,6 +124,7 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
 
     @Override
     public void onSurfaceAvailable(Surface surface) {
+        mCurrentSurface = surface;
         if (mIGSYSurfaceListener != null) {
             mIGSYSurfaceListener.onSurfaceAvailable(surface);
         }
@@ -291,6 +299,9 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
 
     public void initRender() {
         setRenderer(mRenderer);
+        mRendererInitialized = true;
+        super.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        requestRender();
     }
 
 
@@ -305,8 +316,20 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
      * @param CustomRender
      */
     public void setCustomRenderer(GSYVideoGLViewBaseRender CustomRender) {
+        if (CustomRender == null) {
+            return;
+        }
+        if (mRendererInitialized) {
+            Debuger.printfLog(getClass().getSimpleName() + " not support setCustomRenderer after initRender");
+            return;
+        }
         this.mRenderer = CustomRender;
         mRenderer.setSurfaceView(GSYVideoGLView.this);
+        mRenderer.setGSYSurfaceListener(this.mOnGSYSurfaceListener);
+        mRenderer.setEffect(mEffect);
+        if (mMVPMatrix != null && mMVPMatrix.length == 16) {
+            mRenderer.setMVPMatrix(mMVPMatrix);
+        }
         initRenderMeasure();
     }
 
@@ -318,20 +341,40 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
     public void setEffect(ShaderInterface shaderEffect) {
         if (shaderEffect != null) {
             mEffect = shaderEffect;
-            mRenderer.setEffect(mEffect);
+            runOnGLThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (mRenderer != null) {
+                        mRenderer.setEffect(mEffect);
+                    }
+                }
+            });
         }
     }
 
     public void setMVPMatrix(float[] MVPMatrix) {
-        if (MVPMatrix != null) {
-            mMVPMatrix = MVPMatrix;
-            mRenderer.setMVPMatrix(MVPMatrix);
+        if (MVPMatrix != null && MVPMatrix.length == 16) {
+            mMVPMatrix = MVPMatrix.clone();
+            runOnGLThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (mRenderer != null) {
+                        mRenderer.setMVPMatrix(mMVPMatrix);
+                    }
+                }
+            });
         }
     }
 
     public void takeShotPic() {
-        mRenderer.takeShotPic();
-        requestRender();
+        runOnGLThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mRenderer != null) {
+                    mRenderer.takeShotPic();
+                }
+            }
+        });
     }
 
 
@@ -352,12 +395,37 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
 
     public void releaseAll() {
         if (mRenderer != null) {
-            mRenderer.releaseAll();
+            final GSYVideoGLViewBaseRender renderer = mRenderer;
+            renderer.markReleaseRequested();
+            notifySurfaceDestroyedForPlayer();
+            if (mRendererInitialized) {
+                try {
+                    queueEvent(new Runnable() {
+                        @Override
+                        public void run() {
+                            renderer.releaseAll();
+                        }
+                    });
+                    requestRender();
+                } catch (IllegalStateException e) {
+                    renderer.releaseNonGLResources();
+                }
+            } else {
+                renderer.releaseAll();
+            }
         }
     }
 
     public GSYVideoGLViewBaseRender getRenderer() {
         return mRenderer;
+    }
+
+    private void notifySurfaceDestroyedForPlayer() {
+        Surface surface = mCurrentSurface;
+        mCurrentSurface = null;
+        if (surface != null && mIGSYSurfaceListener != null) {
+            mIGSYSurfaceListener.onSurfaceDestroyed(surface);
+        }
     }
 
     public ShaderInterface getEffect() {
@@ -389,17 +457,36 @@ public class GSYVideoGLView extends GLSurfaceView implements GLSurfaceListener, 
             @Override
             public void onError(GSYVideoGLViewBaseRender render, String Error, int code, boolean byChangedRenderError) {
                 if (byChangedRenderError)
-                    addGLView(context, textureViewContainer, rotate, gsySurfaceListener, videoParamsListener, render.getEffect(), render.getMVPMatrix(), render, renderMode);
+                    addGLView(context, textureViewContainer, rotate, gsySurfaceListener, videoParamsListener, render.getEffect(), render.hasCustomMVPMatrix() ? render.getMVPMatrix() : transform, render, renderMode);
 
             }
         });
         if (transform != null && transform.length == 16) {
             gsyVideoGLView.setMVPMatrix(transform);
         } else if (rotate != 0) {
-            android.opengl.Matrix.rotateM(gsyVideoGLView.getRenderer().getMVPMatrix(), 0, -rotate, 0, 0, 1);
+            float[] rotateMatrix = new float[16];
+            android.opengl.Matrix.setIdentityM(rotateMatrix, 0);
+            android.opengl.Matrix.rotateM(rotateMatrix, 0, -rotate, 0, 0, 1);
+            gsyVideoGLView.setMVPMatrix(rotateMatrix);
         }
         GSYRenderView.addToParent(textureViewContainer, gsyVideoGLView);
         return gsyVideoGLView;
+    }
+
+    private void runOnGLThread(final Runnable runnable) {
+        if (runnable == null) {
+            return;
+        }
+        if (!mRendererInitialized) {
+            runnable.run();
+            return;
+        }
+        try {
+            queueEvent(runnable);
+            requestRender();
+        } catch (IllegalStateException e) {
+            runnable.run();
+        }
     }
 
 

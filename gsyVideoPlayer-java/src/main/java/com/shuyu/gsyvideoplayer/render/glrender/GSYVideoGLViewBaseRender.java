@@ -8,6 +8,7 @@ import android.opengl.GLException;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.Surface;
 
 import com.shuyu.gsyvideoplayer.render.view.listener.GSYVideoGLRenderErrorListener;
@@ -38,6 +39,8 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
 
     protected float[] mSTMatrix = new float[16];
 
+    protected boolean mCustomMVPMatrix = false;
+
     protected int mCurrentViewWidth = 0;
 
     protected int mCurrentViewHeight = 0;
@@ -52,9 +55,11 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
 
     protected GSYVideoGLRenderErrorListener mGSYVideoGLRenderErrorListener;
 
-    protected GSYVideoShotListener mGSYVideoShotListener;
+    protected volatile GSYVideoShotListener mGSYVideoShotListener;
 
-    protected Handler mHandler = new Handler();
+    protected Handler mHandler = new Handler(Looper.getMainLooper());
+
+    protected volatile boolean mReleased = false;
 
     public abstract void releaseAll();
 
@@ -66,11 +71,20 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (mGSYSurfaceListener != null) {
+                if (!mReleased && mGSYSurfaceListener != null) {
                     mGSYSurfaceListener.onSurfaceAvailable(surface);
                 }
             }
         });
+    }
+
+    public void markReleaseRequested() {
+        mReleased = true;
+    }
+
+    public void releaseNonGLResources() {
+        mReleased = true;
+        notifyShotBitmap(null);
     }
 
     protected int loadShader(int shaderType, String source) {
@@ -99,6 +113,7 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
         int pixelShader = loadShader(GLES20.GL_FRAGMENT_SHADER,
                 fragmentSource);
         if (pixelShader == 0) {
+            GLES20.glDeleteShader(vertexShader);
             return 0;
         }
 
@@ -119,6 +134,8 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
                 program = 0;
             }
         }
+        GLES20.glDeleteShader(vertexShader);
+        GLES20.glDeleteShader(pixelShader);
         return program;
     }
 
@@ -136,6 +153,32 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
                 }
             });
             //throw new RuntimeException(op + ": glError " + error);
+        }
+    }
+
+    protected void notifyRenderError(final String error, final int code, final boolean byChangedRenderError) {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (mGSYVideoGLRenderErrorListener != null) {
+                    mGSYVideoGLRenderErrorListener.onError(GSYVideoGLViewBaseRender.this, error, code, byChangedRenderError);
+                }
+            }
+        });
+    }
+
+    protected void notifyShotBitmap(final Bitmap bitmap) {
+        final GSYVideoShotListener listener = mGSYVideoShotListener;
+        mGSYVideoShotListener = null;
+        if (listener != null) {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    listener.getBitmap(bitmap);
+                }
+            });
+        } else if (bitmap != null && !bitmap.isRecycled()) {
+            bitmap.recycle();
         }
     }
 
@@ -186,23 +229,21 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
      * 形变动画
      */
     public void setMVPMatrix(float[] MVPMatrix) {
-        this.mMVPMatrix = MVPMatrix;
+        if (MVPMatrix != null && MVPMatrix.length == 16) {
+            System.arraycopy(MVPMatrix, 0, this.mMVPMatrix, 0, 16);
+            mCustomMVPMatrix = true;
+        }
+    }
+
+    public boolean hasCustomMVPMatrix() {
+        return mCustomMVPMatrix;
     }
 
     /**
      * 打开截图
      */
     public void takeShotPic() {
-        final GSYVideoShotListener listener = mGSYVideoShotListener;
-        mGSYVideoShotListener = null;
-        if (listener != null) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    listener.getBitmap(null);
-                }
-            });
-        }
+        notifyShotBitmap(null);
     }
 
     /**
@@ -260,7 +301,10 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
     }
 
     public void initRenderSize() {
-        if (mCurrentViewWidth != 0 && mCurrentViewHeight != 0) {
+        if (mCurrentViewWidth != 0 && mCurrentViewHeight != 0
+                && mSurfaceView != null && mSurfaceView.getWidth() > 0 && mSurfaceView.getHeight() > 0
+                && !mCustomMVPMatrix) {
+            Matrix.setIdentityM(mMVPMatrix, 0);
             Matrix.scaleM(mMVPMatrix, 0, (float) mCurrentViewWidth / mSurfaceView.getWidth(),
                     (float) mCurrentViewHeight / mSurfaceView.getHeight(), 1);
         }
@@ -270,4 +314,3 @@ public abstract class GSYVideoGLViewBaseRender implements GLSurfaceView.Renderer
         this.mGSYVideoGLRenderErrorListener = videoGLRenderErrorListener;
     }
 }
-

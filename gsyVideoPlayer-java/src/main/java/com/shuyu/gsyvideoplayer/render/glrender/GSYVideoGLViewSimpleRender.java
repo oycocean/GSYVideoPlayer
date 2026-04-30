@@ -69,13 +69,15 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
 
     private int maTextureHandle;
 
-    private boolean mUpdateSurface = false;
+    private volatile boolean mUpdateSurface = false;
 
-    private boolean mTakeShotPic = false;
+    private volatile boolean mTakeShotPic = false;
 
     private FloatBuffer mTriangleVertices;
 
     private SurfaceTexture mSurface;
+
+    private Surface mPlayerSurface;
 
     private GSYVideoGLView.ShaderInterface mEffect = new NoEffect();
 
@@ -92,14 +94,27 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
 
     @Override
     public void onDrawFrame(GL10 glUnused) {
+        if (mReleased) {
+            notifyPendingShot();
+            return;
+        }
         synchronized (this) {
             if (mUpdateSurface) {
-                mSurface.updateTexImage();
-                mSurface.getTransformMatrix(mSTMatrix);
+                try {
+                    if (mSurface != null) {
+                        mSurface.updateTexImage();
+                        mSurface.getTransformMatrix(mSTMatrix);
+                    }
+                } catch (RuntimeException e) {
+                    notifyRenderError("updateTexImage error: " + e.getMessage(), 0, false);
+                }
                 mUpdateSurface = false;
             }
         }
-        initDrawFrame();
+        if (!initDrawFrame()) {
+            notifyPendingShot();
+            return;
+        }
 
         bindDrawFrameTexture();
 
@@ -118,40 +133,16 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
 
     @Override
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
+        mReleased = false;
 
         mProgram = createProgram(getVertexShader(), getFragmentShader());
         if (mProgram == 0) {
+            notifyRenderError("create GL program failed", 0, false);
             return;
         }
-        maPositionHandle = GLES20
-                .glGetAttribLocation(mProgram, "aPosition");
-        checkGlError("glGetAttribLocation aPosition");
-        if (maPositionHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for aPosition");
-        }
-        maTextureHandle = GLES20.glGetAttribLocation(mProgram,
-                "aTextureCoord");
-        checkGlError("glGetAttribLocation aTextureCoord");
-        if (maTextureHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for aTextureCoord");
-        }
-
-        muMVPMatrixHandle = GLES20.glGetUniformLocation(mProgram,
-                "uMVPMatrix");
-        checkGlError("glGetUniformLocation uMVPMatrix");
-        if (muMVPMatrixHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for uMVPMatrix");
-        }
-
-        muSTMatrixHandle = GLES20.glGetUniformLocation(mProgram,
-                "uSTMatrix");
-        checkGlError("glGetUniformLocation uSTMatrix");
-        if (muSTMatrixHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for uSTMatrix");
+        if (!initProgramHandles(mProgram, false)) {
+            deleteProgram();
+            return;
         }
 
         GLES20.glGenTextures(2, mTextureID, 0);
@@ -159,31 +150,57 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
         GLES20.glBindTexture(GL_TEXTURE_EXTERNAL_OES, mTextureID[0]);
         checkGlError("glBindTexture mTextureID");
 
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
+        GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES,
                 GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
+        GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES,
                 GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
+        GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES,
                 GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,
+        GLES20.glTexParameteri(GL_TEXTURE_EXTERNAL_OES,
                 GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 
         mSurface = new SurfaceTexture(mTextureID[0]);
         mSurface.setOnFrameAvailableListener(this);
 
-        Surface surface = new Surface(mSurface);
+        mPlayerSurface = new Surface(mSurface);
 
-        sendSurfaceForPlayer(surface);
+        sendSurfaceForPlayer(mPlayerSurface);
     }
 
     @Override
     synchronized public void onFrameAvailable(SurfaceTexture surface) {
         mUpdateSurface = true;
+        if (mSurfaceView != null) {
+            mSurfaceView.requestRender();
+        }
     }
 
     @Override
     public void releaseAll() {
+        releaseNonGLResources();
+        if (mTextureID[0] != 0 || mTextureID[1] != 0) {
+            GLES20.glDeleteTextures(mTextureID.length, mTextureID, 0);
+            mTextureID[0] = 0;
+            mTextureID[1] = 0;
+        }
+        if (mProgram != 0) {
+            deleteProgram();
+        }
+    }
 
+    @Override
+    public void releaseNonGLResources() {
+        mReleased = true;
+        notifyPendingShot();
+        if (mPlayerSurface != null) {
+            mPlayerSurface.release();
+            mPlayerSurface = null;
+        }
+        if (mSurface != null) {
+            mSurface.setOnFrameAvailableListener(null);
+            mSurface.release();
+            mSurface = null;
+        }
     }
 
     /**
@@ -205,10 +222,26 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
         return mEffect;
     }
 
-    protected void initDrawFrame() {
+    protected boolean initDrawFrame() {
         if (mChangeProgram) {
-            mProgram = createProgram(getVertexShader(), getFragmentShader());
+            int program = createProgram(getVertexShader(), getFragmentShader());
+            if (program != 0) {
+                if (initProgramHandles(program, mChangeProgramSupportError)) {
+                    if (mProgram != 0) {
+                        GLES20.glDeleteProgram(mProgram);
+                    }
+                    mProgram = program;
+                } else {
+                    GLES20.glDeleteProgram(program);
+                }
+            } else {
+                notifyRenderError("change GL program failed", 0, mChangeProgramSupportError);
+            }
             mChangeProgram = false;
+            mChangeProgramSupportError = false;
+        }
+        if (mProgram == 0 || mSurface == null || mTextureID[0] == 0) {
+            return false;
         }
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT
@@ -216,6 +249,7 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
 
         GLES20.glUseProgram(mProgram);
         checkGlError("glUseProgram");
+        return true;
     }
 
 
@@ -229,8 +263,6 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
         if (mTakeShotPic) {
             mTakeShotPic = false;
             if (mGSYVideoShotListener != null) {
-                final GSYVideoShotListener listener = mGSYVideoShotListener;
-                mGSYVideoShotListener = null;
                 int width = mSurfaceView != null ? mSurfaceView.getWidth() : 0;
                 int height = mSurfaceView != null ? mSurfaceView.getHeight() : 0;
                 Bitmap bitmap = null;
@@ -241,14 +273,22 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
                         e.printStackTrace();
                     }
                 }
-                final Bitmap result = bitmap;
-                mHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        listener.getBitmap(result);
-                    }
-                });
+                notifyShotBitmap(bitmap);
             }
+        }
+    }
+
+    private void notifyPendingShot() {
+        if (mTakeShotPic) {
+            mTakeShotPic = false;
+            notifyShotBitmap(null);
+        }
+    }
+
+    private void deleteProgram() {
+        if (mProgram != 0) {
+            GLES20.glDeleteProgram(mProgram);
+            mProgram = 0;
         }
     }
 
@@ -277,6 +317,41 @@ public class GSYVideoGLViewSimpleRender extends GSYVideoGLViewBaseRender {
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
         checkGlError("glDrawArrays");
 
+    }
+
+    private boolean initProgramHandles(int program, boolean byChangedRenderError) {
+        int positionHandle = GLES20.glGetAttribLocation(program, "aPosition");
+        checkGlError("glGetAttribLocation aPosition");
+        if (positionHandle == -1) {
+            notifyRenderError("Could not get attrib location for aPosition", 0, byChangedRenderError);
+            return false;
+        }
+        int textureHandle = GLES20.glGetAttribLocation(program, "aTextureCoord");
+        checkGlError("glGetAttribLocation aTextureCoord");
+        if (textureHandle == -1) {
+            notifyRenderError("Could not get attrib location for aTextureCoord", 0, byChangedRenderError);
+            return false;
+        }
+
+        int mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix");
+        checkGlError("glGetUniformLocation uMVPMatrix");
+        if (mvpMatrixHandle == -1) {
+            notifyRenderError("Could not get uniform location for uMVPMatrix", 0, byChangedRenderError);
+            return false;
+        }
+
+        int stMatrixHandle = GLES20.glGetUniformLocation(program, "uSTMatrix");
+        checkGlError("glGetUniformLocation uSTMatrix");
+        if (stMatrixHandle == -1) {
+            notifyRenderError("Could not get uniform location for uSTMatrix", 0, byChangedRenderError);
+            return false;
+        }
+
+        maPositionHandle = positionHandle;
+        maTextureHandle = textureHandle;
+        muMVPMatrixHandle = mvpMatrixHandle;
+        muSTMatrixHandle = stMatrixHandle;
+        return true;
     }
 
     public int getProgram() {

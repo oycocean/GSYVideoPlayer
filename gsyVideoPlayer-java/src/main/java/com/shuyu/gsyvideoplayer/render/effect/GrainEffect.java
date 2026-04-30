@@ -62,7 +62,6 @@ public class GrainEffect implements ShaderInterface {
                 + " vec2 seed;\n"
                 + "varying vec2 vTextureCoord;\n"
                 + "uniform samplerExternalOES tex_sampler_0;\n"
-                + "uniform samplerExternalOES tex_sampler_1;\n"
                 + "float scale;\n"
                 + " float stepX;\n"
                 + " float stepY;\n"
@@ -86,11 +85,11 @@ public class GrainEffect implements ShaderInterface {
                 + scaleString
                 + stepX
                 + stepY
-                + "  float noise = texture2D(tex_sampler_1, vTextureCoord + vec2(-stepX, -stepY)).r * 0.224;\n"
-                + "  noise += texture2D(tex_sampler_1, vTextureCoord + vec2(-stepX, stepY)).r * 0.224;\n"
-                + "  noise += texture2D(tex_sampler_1, vTextureCoord + vec2(stepX, -stepY)).r * 0.224;\n"
-                + "  noise += texture2D(tex_sampler_1, vTextureCoord + vec2(stepX, stepY)).r * 0.224;\n"
-                + "  noise += 0.4448;\n"
+                + "  float noise = rand(vTextureCoord + seed + vec2(-stepX, -stepY)) * 0.224;\n"
+                + "  noise += rand(vTextureCoord + seed + vec2(-stepX, stepY)) * 0.224;\n"
+                + "  noise += rand(vTextureCoord + seed + vec2(stepX, -stepY)) * 0.224;\n"
+                + "  noise += rand(vTextureCoord + seed + vec2(stepX, stepY)) * 0.224;\n"
+                + "  noise += 0.4448 * scale;\n"
                 + "  noise *= scale;\n"
                 + "  vec4 color = texture2D(tex_sampler_0, vTextureCoord);\n"
                 + "  float energy = 0.33333 * color.r + 0.33333 * color.g + 0.33333 * color.b;\n"

@@ -34,7 +34,7 @@ public class GSYVideoGLViewCustomRender3 extends GSYVideoGLViewSimpleRender {
         int mFilterInputTextureUniform2 = GLES20.glGetUniformLocation(getProgram(), "sTexture2");
         GLES20.glActiveTexture(GLES20.GL_TEXTURE3);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTexturesBitmap[0]);
-        GLES20.glUniform1i(mFilterInputTextureUniform2, mTexturesBitmap[0]);
+        GLES20.glUniform1i(mFilterInputTextureUniform2, 3);
     }
 
     @Override
@@ -42,6 +42,10 @@ public class GSYVideoGLViewCustomRender3 extends GSYVideoGLViewSimpleRender {
         super.onSurfaceCreated(glUnused, config);
 
         Bitmap bitmap = BitmapFactory.decodeResource(mSurfaceView.getResources(), com.shuyu.gsyvideoplayer.R.drawable.video_brightness_6_white_36dp);
+        if (bitmap == null) {
+            notifyRenderError("decode bitmap effect resource failed", 0, false);
+            return;
+        }
         //创建bitmap
         GLES20.glGenTextures(1, mTexturesBitmap, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTexturesBitmap[0]);
@@ -58,11 +62,19 @@ public class GSYVideoGLViewCustomRender3 extends GSYVideoGLViewSimpleRender {
     }
 
     @Override
+    public void releaseAll() {
+        super.releaseAll();
+        if (mTexturesBitmap[0] != 0) {
+            GLES20.glDeleteTextures(1, mTexturesBitmap, 0);
+            mTexturesBitmap[0] = 0;
+        }
+    }
+
+    @Override
     protected String getFragmentShader() {
         return mBitmapEffect.getShader(mSurfaceView);
     }
 
 
 }
-
 

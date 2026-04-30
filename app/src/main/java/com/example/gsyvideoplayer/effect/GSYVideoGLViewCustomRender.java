@@ -55,6 +55,8 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
 
     private int mTexturesBitmap[] = new int[1];
 
+    private int mFilterInputTextureUniform2 = -1;
+
     private FloatBuffer mTriangleVertices;
 
     //水印圖
@@ -94,6 +96,12 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
 
     @Override
     public void onDrawFrame(GL10 glUnused) {
+        if (mReleased || mBitmapEffect == null || curProgram == 0 || mTexturesBitmap[0] == 0
+                || maPositionHandle == -1 || maTextureHandle == -1 || muMVPMatrixHandle == -1
+                || muSTMatrixHandle == -1 || mFilterInputTextureUniform2 == -1) {
+            super.onDrawFrame(glUnused);
+            return;
+        }
         super.onDrawFrame(glUnused);
 
         //curProgram = createProgram(getVertexShader(), mBitmapEffect.getShader(mSurfaceView));
@@ -102,10 +110,9 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
         checkGlError("glUseProgram");
 
         //绑定注入bitmap
-        int mFilterInputTextureUniform2 = GLES20.glGetUniformLocation(curProgram, "sTexture2");
         GLES20.glActiveTexture(GLES20.GL_TEXTURE3);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTexturesBitmap[0]);
-        GLES20.glUniform1i(mFilterInputTextureUniform2, mTexturesBitmap[0]);
+        GLES20.glUniform1i(mFilterInputTextureUniform2, 3);
 
         mTriangleVertices.position(TRIANGLE_VERTICES_DATA_POS_OFFSET);
         GLES20.glVertexAttribPointer(maPositionHandle, 3, GLES20.GL_FLOAT,
@@ -126,7 +133,9 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
         GLES20.glUniformMatrix4fv(muSTMatrixHandle, 1, false, mSTMatrix, 0);
 
 
-        GLES20.glUniformMatrix4fv(muMVPMatrixHandle, 1, false, mMVPMatrix, 0);
+        synchronized (mMVPMatrix) {
+            GLES20.glUniformMatrix4fv(muMVPMatrixHandle, 1, false, mMVPMatrix, 0);
+        }
 
         //水印透明
         GLES20.glEnable(GLES20.GL_BLEND);
@@ -142,6 +151,9 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
     @Override
     public void onSurfaceChanged(GL10 glUnused, int width, int height) {
         super.onSurfaceChanged(glUnused, width, height);
+        if (mBitmapEffect == null) {
+            return;
+        }
         //旋转到正常角度
         Matrix.setRotateM(mMVPMatrix, 0, 180f, 0.0f, 0, 1.0f);
         //调整大小比例
@@ -153,41 +165,60 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
     @Override
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
         super.onSurfaceCreated(glUnused, config);
+        if (getProgram() == 0) {
+            return;
+        }
+        if (mBitmapEffect == null) {
+            notifyRenderError("BitmapIconEffect is null", 0, false);
+            return;
+        }
 
         curProgram = createProgram(getVertexShader(), mBitmapEffect.getShader(mSurfaceView));
 
         if (curProgram == 0) {
+            notifyRenderError("create bitmap effect program failed", 0, false);
             return;
         }
-        maPositionHandle = GLES20
-                .glGetAttribLocation(curProgram, "aPosition");
+        maPositionHandle = GLES20.glGetAttribLocation(curProgram, "aPosition");
         checkGlError("glGetAttribLocation aPosition");
         if (maPositionHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for aPosition");
+            notifyRenderError("Could not get attrib location for aPosition", 0, false);
+            deleteBitmapProgram();
+            return;
         }
         maTextureHandle = GLES20.glGetAttribLocation(curProgram,
                 "aTextureCoord");
         checkGlError("glGetAttribLocation aTextureCoord");
         if (maTextureHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for aTextureCoord");
+            notifyRenderError("Could not get attrib location for aTextureCoord", 0, false);
+            deleteBitmapProgram();
+            return;
         }
 
         muMVPMatrixHandle = GLES20.glGetUniformLocation(curProgram,
                 "uMVPMatrix");
         checkGlError("glGetUniformLocation uMVPMatrix");
         if (muMVPMatrixHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for uMVPMatrix");
+            notifyRenderError("Could not get uniform location for uMVPMatrix", 0, false);
+            deleteBitmapProgram();
+            return;
         }
 
         muSTMatrixHandle = GLES20.glGetUniformLocation(curProgram,
                 "uSTMatrix");
         checkGlError("glGetUniformLocation uSTMatrix");
         if (muSTMatrixHandle == -1) {
-            throw new RuntimeException(
-                    "Could not get attrib location for uSTMatrix");
+            notifyRenderError("Could not get uniform location for uSTMatrix", 0, false);
+            deleteBitmapProgram();
+            return;
+        }
+
+        mFilterInputTextureUniform2 = GLES20.glGetUniformLocation(curProgram, "sTexture2");
+        checkGlError("glGetUniformLocation sTexture2");
+        if (mFilterInputTextureUniform2 == -1) {
+            notifyRenderError("Could not get uniform location for sTexture2", 0, false);
+            deleteBitmapProgram();
+            return;
         }
 
         //创建bitmap
@@ -208,9 +239,28 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
     @Override
     public void releaseAll() {
         super.releaseAll();
-        Bitmap bitmap = mBitmapEffect.getBitmap();
-        if (bitmap != null && !bitmap.isRecycled()) {
-            bitmap.recycle();
+        if (mTexturesBitmap[0] != 0) {
+            GLES20.glDeleteTextures(1, mTexturesBitmap, 0);
+            mTexturesBitmap[0] = 0;
+        }
+        deleteBitmapProgram();
+        releaseBitmapEffect();
+    }
+
+    @Override
+    public void releaseNonGLResources() {
+        super.releaseNonGLResources();
+        releaseBitmapEffect();
+        curProgram = 0;
+        mTexturesBitmap[0] = 0;
+    }
+
+    private void releaseBitmapEffect() {
+        if (mBitmapEffect != null) {
+            Bitmap bitmap = mBitmapEffect.getBitmap();
+            if (bitmap != null && !bitmap.isRecycled()) {
+                bitmap.recycle();
+            }
         }
     }
 
@@ -219,12 +269,26 @@ public class GSYVideoGLViewCustomRender extends GSYVideoGLViewSimpleRender {
     }
 
     public void setCurrentMVPMatrix(float[] mMVPMatrix) {
-        this.mMVPMatrix = mMVPMatrix;
+        if (mMVPMatrix != null && mMVPMatrix.length == 16) {
+            synchronized (this.mMVPMatrix) {
+                System.arraycopy(mMVPMatrix, 0, this.mMVPMatrix, 0, 16);
+            }
+        }
     }
 
     public void setBitmapEffect(BitmapIconEffect bitmapEffect) {
         this.mBitmapEffect = bitmapEffect;
     }
+
+    private void deleteBitmapProgram() {
+        if (curProgram != 0) {
+            GLES20.glDeleteProgram(curProgram);
+            curProgram = 0;
+        }
+        maPositionHandle = -1;
+        maTextureHandle = -1;
+        muMVPMatrixHandle = -1;
+        muSTMatrixHandle = -1;
+        mFilterInputTextureUniform2 = -1;
+    }
 }
-
-

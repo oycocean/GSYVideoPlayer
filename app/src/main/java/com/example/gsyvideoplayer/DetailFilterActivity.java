@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.opengl.Matrix;
 import android.os.Bundle;
@@ -22,6 +23,9 @@ import com.bumptech.glide.request.RequestOptions;
 import com.example.gsyvideoplayer.databinding.ActivityDetailFilterBinding;
 import com.example.gsyvideoplayer.effect.BitmapIconEffect;
 import com.example.gsyvideoplayer.effect.GSYVideoGLViewCustomRender;
+import com.example.gsyvideoplayer.effect.GSYVideoGLViewCustomRender2;
+import com.example.gsyvideoplayer.effect.GSYVideoGLViewCustomRender3;
+import com.example.gsyvideoplayer.effect.GSYVideoGLViewCustomRender4;
 import com.example.gsyvideoplayer.effect.PixelationEffect;
 import com.example.gsyvideoplayer.utils.CommonUtil;
 import com.shuyu.gsyvideoplayer.GSYBaseActivityDetail;
@@ -82,6 +86,23 @@ import permissions.dispatcher.RuntimePermissions;
 @RuntimePermissions
 public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideoPlayer> {
 
+    private static final String EXTRA_RENDER_SCENE = "render_scene";
+
+    private static final String LEGACY_EXTRA_CONTENT_EFFECT = "content_effect";
+
+    private static final String STATE_RENDER_SCENE = "state_render_scene";
+
+    private static final String EXTRA_BACKUP_RENDER_TYPE = "backup_render_type";
+
+    private static final String[] FILTER_EFFECT_NAMES = {
+        "自动修正", "像素化", "黑白", "对比度", "冲印", "纪录片", "双色调", "补光", "Gamma",
+        "颗粒", "颗粒增强", "色相", "反色", "Lomo", "色阶", "桶形模糊", "饱和度", "棕褐",
+        "锐化", "色温", "染色", "暗角", "无滤镜", "Overlay", "采样模糊", "高斯模糊", "亮度"
+    };
+
+    private static final String[] RENDER_SCENE_NAMES = {
+        "默认渲染", "水印叠加", "双重播放", "图片穿孔", "模糊背景"
+    };
 
     private int type = 0;
 
@@ -108,6 +129,12 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
 
     private boolean moveBitmap = false;
 
+    private int renderSceneType = 0;
+
+    private GSYVideoGLView.ShaderInterface initialEffectFilter = new NoEffect();
+
+    private String initialEffectName = "无滤镜";
+
     private GifCreateHelper mGifCreateHelper;
 
     private ActivityDetailFilterBinding binding;
@@ -122,16 +149,34 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
         setContentView(rootView);
 
         Log.e("@@@@@@@", "####" + binding.detailPlayer);
-        backupRendType = GSYVideoType.getRenderType();
+        if (getIntent().hasExtra(EXTRA_BACKUP_RENDER_TYPE)) {
+            backupRendType = getIntent().getIntExtra(EXTRA_BACKUP_RENDER_TYPE, GSYVideoType.getRenderType());
+        } else {
+            backupRendType = GSYVideoType.getRenderType();
+            getIntent().putExtra(EXTRA_BACKUP_RENDER_TYPE, backupRendType);
+        }
+        renderSceneType = getIntent().getIntExtra(EXTRA_RENDER_SCENE,
+            getIntent().getIntExtra(LEGACY_EXTRA_CONTENT_EFFECT, 0));
+        if (savedInstanceState != null) {
+            renderSceneType = savedInstanceState.getInt(STATE_RENDER_SCENE, renderSceneType);
+        }
+        if (renderSceneType < 0 || renderSceneType >= RENDER_SCENE_NAMES.length) {
+            renderSceneType = 0;
+        }
 
         //设置为GL播放模式，才能支持滤镜，注意此设置是全局的
         GSYVideoType.setRenderType(GSYVideoType.GLSURFACE);
 
         resolveNormalVideoUI();
 
+        applyRenderSceneBeforeBuild();
+
         initVideoBuilderMode();
 
         initGifHelper();
+
+        updateFilterButtonState();
+        updateEffectInfo(initialEffectName);
 
         binding.detailPlayer.setLockClickListener(new LockClickListener() {
             @Override
@@ -213,6 +258,13 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
             }
         });
 
+        binding.changeRenderScene.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeRenderScene();
+            }
+        });
+
 
         binding.startGif.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -270,6 +322,7 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
             .setLockLand(false)
             .setShowFullAnimation(false)
             .setNeedLockFull(true)
+            .setEffectFilter(initialEffectFilter)
             .setSeekRatio(1);
     }
 
@@ -294,7 +347,15 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
         //恢复到原本的绘制模式
         GSYVideoType.setRenderType(backupRendType);
         cancelTask();
-        mGifCreateHelper.release();
+        if (mGifCreateHelper != null) {
+            mGifCreateHelper.release();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_RENDER_SCENE, renderSceneType);
     }
 
     /**
@@ -388,11 +449,52 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
         binding.detailPlayer.getBackButton().setVisibility(View.GONE);
     }
 
+    private void applyRenderSceneBeforeBuild() {
+        initialEffectFilter = new NoEffect();
+        initialEffectName = "无滤镜";
+        binding.detailPlayer.setGLRenderMode(GSYVideoGLView.MODE_LAYOUT_SIZE);
+        switch (renderSceneType) {
+            case 1:
+                Bitmap watermark = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
+                if (watermark != null) {
+                    mGSYVideoGLViewCustomRender = new GSYVideoGLViewCustomRender();
+                    mCustomBitmapIconEffect = new BitmapIconEffect(watermark, dp2px(56), dp2px(56), 0.72f);
+                    mGSYVideoGLViewCustomRender.setBitmapEffect(mCustomBitmapIconEffect);
+                    binding.detailPlayer.setCustomGLRenderer(mGSYVideoGLViewCustomRender);
+                    binding.detailPlayer.setGLRenderMode(GSYVideoGLView.MODE_RENDER_SIZE);
+                }
+                break;
+            case 2:
+                initialEffectFilter = new GammaEffect(0.8f);
+                initialEffectName = "Gamma";
+                binding.detailPlayer.setCustomGLRenderer(new GSYVideoGLViewCustomRender2());
+                break;
+            case 3:
+                initialEffectName = "固定遮罩";
+                binding.detailPlayer.setCustomGLRenderer(new GSYVideoGLViewCustomRender3());
+                break;
+            case 4:
+                initialEffectFilter = new GaussianBlurEffect(6.0f, GaussianBlurEffect.TYPEXY);
+                initialEffectName = "高斯模糊";
+                binding.detailPlayer.setCustomGLRenderer(new GSYVideoGLViewCustomRender4());
+                binding.detailPlayer.setGLRenderMode(GSYVideoGLView.MODE_RENDER_SIZE);
+                break;
+            default:
+                break;
+        }
+    }
+
     /**
      * 切换滤镜
      */
     private void resolveTypeUI() {
+        if (renderSceneType == 3) {
+            updateEffectInfo("固定遮罩");
+            showToast("图片穿孔模式使用固定遮罩效果");
+            return;
+        }
         GSYVideoGLView.ShaderInterface effect = new NoEffect();
+        String effectName = FILTER_EFFECT_NAMES[type];
         switch (type) {
             case 0:
                 effect = new AutoFixEffect(deep);
@@ -477,10 +579,31 @@ public class DetailFilterActivity extends GSYBaseActivityDetail<StandardGSYVideo
                 break;
         }
         binding.detailPlayer.setEffectFilter(effect);
+        updateEffectInfo(effectName);
         type++;
-        if (type > 25) {
+        if (type >= FILTER_EFFECT_NAMES.length) {
             type = 0;
         }
+    }
+
+    private void changeRenderScene() {
+        renderSceneType++;
+        if (renderSceneType >= RENDER_SCENE_NAMES.length) {
+            renderSceneType = 0;
+        }
+        getIntent().putExtra(EXTRA_RENDER_SCENE, renderSceneType);
+        getIntent().putExtra(EXTRA_BACKUP_RENDER_TYPE, backupRendType);
+        recreate();
+    }
+
+    private void updateEffectInfo(String filterName) {
+        binding.glEffectInfo.setText("滤镜：" + filterName + "    渲染模式：" + RENDER_SCENE_NAMES[renderSceneType]);
+    }
+
+    private void updateFilterButtonState() {
+        boolean enabled = renderSceneType != 3;
+        binding.changeFilter.setEnabled(enabled);
+        binding.changeFilter.setAlpha(enabled ? 1f : 0.45f);
     }
 
 

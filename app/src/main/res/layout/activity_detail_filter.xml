@@ -66,28 +66,48 @@
 
     </RelativeLayout>
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/detail_player_control_2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/detail_player_control_1">
+        android:layout_below="@+id/detail_player_control_1"
+        android:orientation="horizontal">
 
         <Button
             android:id="@+id/start_gif"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
+            android:layout_weight="1"
             android:text="开始gif" />
 
 
         <Button
             android:id="@+id/stop_gif"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
-            android:layout_toRightOf="@+id/start_gif"
+            android:layout_weight="1"
             android:text="停止gif" />
-    </RelativeLayout>
+
+        <Button
+            android:id="@+id/change_render_scene"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:layout_weight="1"
+            android:text="渲染模式" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/gl_effect_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/detail_player_control_2"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:textColor="#666666"
+        android:textSize="13sp" />
 
     <RelativeLayout
         android:id="@+id/loadingView"

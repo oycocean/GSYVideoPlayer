@@ -22,6 +22,9 @@ public class GSYVideoGLViewCustomRender2 extends GSYVideoGLViewSimpleRender {
     @Override
     public void onDrawFrame(GL10 glUnused) {
         super.onDrawFrame(glUnused);
+        if (mReleased || getProgram() == 0) {
+            return;
+        }
         float[] transform = new float[16];
         Matrix.setIdentityM(transform, 0);
         Matrix.scaleM(transform, 0, 0.8f, 0.8f, 1);
@@ -30,5 +33,4 @@ public class GSYVideoGLViewCustomRender2 extends GSYVideoGLViewSimpleRender {
         GLES20.glFinish();
     }
 }
-
 
