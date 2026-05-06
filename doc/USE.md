@@ -539,7 +539,7 @@ GSYVideoType.setRenderType(GSYVideoType.GLSURFACE);
 
 - `打开VIDEO`：WebVTT 进度条预览，使用 `PreViewGSYVideoPlayer#setPreviewVttUrl(String)`。
 - `自定义EXO支持字幕`、`通用字幕非EXO`：通用外挂字幕，支持 SRT/WebVTT 和多内核复用。
-- `完成保留最后一帧`：完成后保留最后一帧 Demo，通过 `KeepLastFrameVideo#setKeepLastFrameWhenComplete(boolean)` 控制。
+- `完成保留最后一帧`：完成后保留最后一帧 Demo，通过 `KeepLastFrameVideo#setKeepLastFrameWhenComplete(boolean)` 控制，详见 [KEEP_LAST_FRAME.md](KEEP_LAST_FRAME.md)。
 - `滤镜`：GLSurfaceView 滤镜和多种 GL 效果场景。
 - `无缝切换`：多 URL 清晰度切换 Demo，适合多个独立 URL 的切换。
 - `EXO自适应清晰度`：HLS master / DASH MPD 自适应清晰度 Demo，适合服务端提供标准多码率流的场景。

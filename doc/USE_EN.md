@@ -504,7 +504,7 @@ Common entry points:
 
 - `Open VIDEO`: WebVTT seek preview via `PreViewGSYVideoPlayer#setPreviewVttUrl(String)`.
 - `Custom EXO subtitles`, `Common subtitles non-EXO`: unified external SRT/WebVTT subtitles across player cores.
-- `Keep last frame`: keep-last-frame demo controlled by `KeepLastFrameVideo#setKeepLastFrameWhenComplete(boolean)`.
+- `Keep last frame`: keep-last-frame demo controlled by `KeepLastFrameVideo#setKeepLastFrameWhenComplete(boolean)`, see [KEEP_LAST_FRAME_EN.md](KEEP_LAST_FRAME_EN.md).
 - `Filter`: GLSurfaceView filters and GL effect scenes.
 - `Seamless switch`: multi-URL quality switching for separate URLs.
 - `EXO adaptive quality`: HLS master / DASH MPD adaptive quality demo for standard multi-bitrate streams.

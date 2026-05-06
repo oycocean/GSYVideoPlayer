@@ -11,7 +11,7 @@
 - 截图能力补齐 SurfaceView、TextureView、GLSurfaceView 回调，并新增包含播放器 UI 的组合截图 API。
 - GL 渲染 Demo 增加多种效果场景，强化 GL renderer 生命周期、截图和释放安全性。
 - 多 URL 清晰度切换优化位置同步、超时、失败回退和临时 manager 释放，降低切换回 0 的风险。
-- 新增完成后保留最后一帧 Demo，方便验证自然播放完成后的封面和 Surface 保留策略。
+- 新增完成后保留最后一帧 Demo 和专题文档，方便验证自然播放完成后的封面和 Surface 保留策略。
 - 播放器内核创建和初始化失败时走错误回调与资源清理，降低直接 crash 风险。
 - 优化 Exo cache 生命周期处理和 GIF 生成结束/失败后的清理流程。
 

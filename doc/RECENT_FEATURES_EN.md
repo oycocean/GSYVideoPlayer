@@ -42,6 +42,7 @@ Recent playback feature notes are covered in:
 - `doc/ARCHITECTURE.md`: layer ownership across UI, Manager, Render, and Exo manager.
 - `doc/GSYVIDEO_PLAYER_PROJECT_INFO.md` / `doc/GSYVIDEO_PLAYER_PROJECT_INFO_EN.md`: recent feature mapping in the project structure guide.
 - `doc/SUBTITLE_CN.md`: unified subtitle guide.
+- `doc/KEEP_LAST_FRAME.md` / `doc/KEEP_LAST_FRAME_EN.md`: keep-last-frame guide.
 - `doc/RECENT_FEATURES.md` / `doc/RECENT_FEATURES_EN.md`: full recent feature overview, APIs, and regression checklist.
 
 Build, dependency, SO, publishing, decoder, and FAQ documents are not forced to repeat these playback feature notes because their scope is not demo entry points or playback architecture.
@@ -88,7 +89,7 @@ See [SUBTITLE_CN.md](SUBTITLE_CN.md) for the detailed Chinese subtitle guide.
 
 ## Keep Last Frame
 
-`KeepLastFrameVideo` is a demo-level implementation. It overrides the natural completion UI transition and keeps the render view instead of returning to the cover immediately.
+`KeepLastFrameVideo` is a demo-level implementation. It overrides the natural completion UI transition and keeps the render view instead of returning to the cover immediately. See [KEEP_LAST_FRAME_EN.md](KEEP_LAST_FRAME_EN.md) for details.
 
 ```java
 keepLastFrameVideo.setKeepLastFrameWhenComplete(true);

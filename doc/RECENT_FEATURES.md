@@ -42,6 +42,7 @@
 - `doc/ARCHITECTURE.md`：播放能力在 UI、Manager、Render、Exo manager 等层级上的设计归属。
 - `doc/GSYVIDEO_PLAYER_PROJECT_INFO.md` / `doc/GSYVIDEO_PLAYER_PROJECT_INFO_EN.md`：项目结构说明里的近期能力层级映射。
 - `doc/SUBTITLE_CN.md`：通用字幕专题说明。
+- `doc/KEEP_LAST_FRAME.md` / `doc/KEEP_LAST_FRAME_EN.md`：完成后保留最后一帧专题说明。
 - `doc/RECENT_FEATURES.md` / `doc/RECENT_FEATURES_EN.md`：近期能力总览、API 和回归清单。
 
 构建、依赖、SO、发布、解码器、FAQ 类文档没有强行加入本次播放能力说明，因为它们的主题不是 Demo 功能入口或播放架构。
@@ -88,7 +89,7 @@ videoPlayer.setSubtitleEnabled(true);
 
 ## 完成后保留最后一帧
 
-`KeepLastFrameVideo` 是 Demo 级实现，核心是覆写自然播放完成后的 UI 状态切换，在不主动释放 render view 的情况下保留画面。
+`KeepLastFrameVideo` 是 Demo 级实现，核心是覆写自然播放完成后的 UI 状态切换，在不主动释放 render view 的情况下保留画面。详细说明见 [KEEP_LAST_FRAME.md](KEEP_LAST_FRAME.md)。
 
 ```java
 keepLastFrameVideo.setKeepLastFrameWhenComplete(true);
